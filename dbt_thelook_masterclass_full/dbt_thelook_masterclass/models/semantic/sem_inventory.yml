@@ -1,0 +1,45 @@
+semantic_models:
+  - name: sem_inventory
+    description: One row per inventory unit. Use for stock-health and capital-tied-up questions.
+    model: "{{ ref('fct_inventory') }}"
+    defaults:
+      agg_time_dimension: stocked_at
+
+    entities:
+      - name: inventory_item
+        type: primary
+        expr: inventory_item_id
+      - name: product
+        type: foreign
+        expr: product_id
+
+    dimensions:
+      - name: stocked_at
+        type: time
+        type_params:
+          time_granularity: day
+        expr: created_at
+      - name: category
+        type: categorical
+      - name: department
+        type: categorical
+      - name: is_currently_in_stock
+        type: categorical
+
+    measures:
+      - name: inventory_unit_count
+        description: Count of inventory units.
+        agg: count
+        expr: inventory_item_id
+      - name: inventory_cost_total
+        description: Sum of inventory_unit_cost — total capital represented.
+        agg: sum
+        expr: inventory_unit_cost
+      - name: unsold_unit_count
+        description: Count of units not yet sold.
+        agg: sum
+        expr: "case when is_currently_in_stock then 1 else 0 end"
+      - name: avg_days_in_inventory
+        description: Average days_in_inventory across currently unsold units.
+        agg: average
+        expr: days_in_inventory

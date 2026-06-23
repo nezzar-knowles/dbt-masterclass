@@ -1,0 +1,6 @@
+packages:
+  - package: dbt-labs/dbt_utils
+    version: 1.3.3
+
+# After adding or changing anything here, run `dbt deps` in the Studio IDE
+# before your next `dbt run` — packages aren't installed automatically.

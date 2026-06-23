@@ -1,0 +1,31 @@
+unit_tests:
+  - name: test_customer_segment_classification
+    description: >
+      The best unit-test candidate in this project: customer_segment is
+      pure conditional logic with zero dependency on real data quirks, so
+      it's trivial to construct exact cases for and verify by hand. Mocks
+      three users with 0, 1, and 2 lifetime orders and asserts each lands
+      in the correct segment bucket.
+    model: dim_customers
+    given:
+      - input: ref('stg_thelook__users')
+        rows:
+          - {user_id: 1, first_name: 'A', last_name: 'Test', email: 'a@test.com', age: 30, gender: 'F', city: 'X', state: 'X', country: 'United States', traffic_source: 'organic', created_at: "2026-01-01 00:00:00"}
+          - {user_id: 2, first_name: 'B', last_name: 'Test', email: 'b@test.com', age: 30, gender: 'M', city: 'X', state: 'X', country: 'United States', traffic_source: 'organic', created_at: "2026-01-01 00:00:00"}
+          - {user_id: 3, first_name: 'C', last_name: 'Test', email: 'c@test.com', age: 30, gender: 'F', city: 'X', state: 'X', country: 'United States', traffic_source: 'organic', created_at: "2026-01-01 00:00:00"}
+      - input: ref('int_users_order_history_rollup')
+        rows:
+          - {user_id: 2, first_order_at: "2026-01-05 00:00:00", most_recent_order_at: "2026-01-05 00:00:00", lifetime_order_count: 1, lifetime_revenue: 50.00}
+          - {user_id: 3, first_order_at: "2026-01-05 00:00:00", most_recent_order_at: "2026-02-05 00:00:00", lifetime_order_count: 2, lifetime_revenue: 120.00}
+      - input: ref('int_users_first_order_attribution')
+        rows:
+          - {user_id: 1, acquisition_channel: 'organic', signup_at: "2026-01-01 00:00:00", first_order_at: null, lifetime_order_count: null, lifetime_revenue: null, days_to_first_order: null, has_ordered: false}
+          - {user_id: 2, acquisition_channel: 'organic', signup_at: "2026-01-01 00:00:00", first_order_at: "2026-01-05 00:00:00", lifetime_order_count: 1, lifetime_revenue: 50.00, days_to_first_order: 4, has_ordered: true}
+          - {user_id: 3, acquisition_channel: 'organic', signup_at: "2026-01-01 00:00:00", first_order_at: "2026-01-05 00:00:00", lifetime_order_count: 2, lifetime_revenue: 120.00, days_to_first_order: 4, has_ordered: true}
+      - input: ref('int_users_nearest_distribution_center')
+        rows: []
+    expect:
+      rows:
+        - {user_id: 1, customer_segment: 'never_purchased'}
+        - {user_id: 2, customer_segment: 'one_time_customer'}
+        - {user_id: 3, customer_segment: 'repeat_customer'}

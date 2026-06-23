@@ -1,0 +1,88 @@
+version: 2
+
+seeds:
+  - name: holiday_calendar
+    description: >
+      US holiday/shopping-event calendar, 2024-2027. Generated programmatically
+      (using the Python `holidays` library plus computed rules for Black
+      Friday/Cyber Monday/Mother's Day/Father's Day) rather than typed from
+      memory, specifically to avoid an instructor confidently citing a wrong
+      date in front of a paying class. This is the canonical example of what
+      belongs in seeds/: small, static, instructor-curated reference data
+      that has nothing to do with thelook_ecommerce itself and doesn't
+      belong in a source.
+    columns:
+      - name: holiday_date
+        description: Calendar date of the holiday/event.
+        data_tests:
+          - unique
+          - not_null
+      - name: holiday_name
+        data_tests:
+          - not_null
+  - name: traffic_source_channel_mapping
+    description: >
+      Maps raw traffic_source values to broader Paid/Organic channel groups.
+      Classic real-world seed pattern — channel taxonomy is always
+      business-defined, never present in a source system.
+      CAVEAT: the traffic_source values listed (Email, Facebook, Display,
+      Search, Organic) are my best assessment, not verified against the
+      live table. Run `select distinct traffic_source from
+      {{ source('thelook_ecommerce','users') }}` and `... events` and add
+      any missing values as new rows before relying on a join against this
+      seed to be complete — an unmatched value will just produce a null
+      channel_group, not an error, so a gap here can go unnoticed.
+    columns:
+      - name: traffic_source
+        data_tests:
+          - unique
+          - not_null
+      - name: channel_group
+        data_tests:
+          - not_null
+
+  - name: country_region_mapping
+    description: >
+      Maps users.country to a broader macro region (North America, Europe,
+      Asia Pacific, etc.) for geographic roll-ups beyond country-level
+      granularity. CAVEAT: covers ~45 commonly-occurring countries — it is
+      not guaranteed to be exhaustive of every country value actually
+      present in stg_thelook__users.country. Add rows for any country that
+      doesn't match before treating regional totals as complete; an
+      unmatched country will silently produce a null region rather than an
+      error.
+    columns:
+      - name: country
+        data_tests:
+          - unique
+          - not_null
+      - name: region
+        data_tests:
+          - not_null
+
+  - name: product_category_target_margin
+    description: >
+      Instructor-defined target margin percentage per department/category,
+      for a target-vs-actual margin variance exercise against dim_products.
+      These are illustrative business targets I invented for teaching
+      purposes, not real category economics — say this explicitly to
+      students. CAVEAT: department/category names are based on a typical
+      clothing-retailer taxonomy and have NOT been verified against the
+      live products table. Run `select distinct department, category from
+      {{ source('thelook_ecommerce','products') }}` and reconcile the
+      names before joining — a mismatched category name will silently
+      produce a null target rather than an error.
+    columns:
+      - name: department
+        data_tests:
+          - not_null
+      - name: category
+        data_tests:
+          - not_null
+      - name: target_margin_pct
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
