@@ -1,13 +1,12 @@
-{{
-    config(
-        materialized='incremental',
-        unique_key='order_item_id',
-        on_schema_change='sync_all_columns',
-
         -- BigQuery-specific: partition by the order date so each daily
         -- incremental run only scans the latest partition, not the whole
         -- table. Without this, every run scans the full fct_order_items
         -- history even though it only adds a small slice of new rows.
+    {{
+    config(
+        materialized='incremental',
+        unique_key='order_item_id',
+        on_schema_change='sync_all_columns',
         partition_by={
             "field": "created_at",
             "data_type": "timestamp",
