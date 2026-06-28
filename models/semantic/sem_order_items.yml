@@ -1,0 +1,63 @@
+semantic_models:
+  - name: sem_order_items
+    description: >
+      Line-item grain — the primary source for revenue and margin metrics.
+      Use this rather than sem_orders for anything product- or
+      category-specific, since order-level revenue undercounts multi-item
+      orders.
+    model: ref('fct_order_items')
+    defaults:
+      agg_time_dimension: ordered_at
+
+    entities:
+      - name: order_item
+        type: primary
+        expr: order_item_id
+      - name: order
+        type: foreign
+        expr: order_id
+      - name: customer
+        type: foreign
+        expr: user_id
+      - name: product
+        type: foreign
+        expr: product_id
+
+    dimensions:
+      - name: ordered_at
+        type: time
+        type_params:
+          time_granularity: day
+        expr: created_at
+      - name: order_status
+        type: categorical
+      - name: product_category
+        type: categorical
+      - name: product_department
+        type: categorical
+      - name: product_brand
+        type: categorical
+      - name: distribution_center_name
+        type: categorical
+
+    measures:
+      - name: total_revenue
+        description: Sum of sale_price across line items.
+        agg: sum
+        expr: sale_price
+      - name: total_cost
+        description: Sum of product cost across line items.
+        agg: sum
+        expr: product_cost
+      - name: total_margin
+        description: Sum of item-level margin (sale_price - cost).
+        agg: sum
+        expr: item_margin
+      - name: order_item_count
+        description: Count of line items.
+        agg: count
+        expr: order_item_id
+      - name: returned_item_count
+        description: Count of line items with a returned status.
+        agg: sum
+        expr: "case when order_status = 'returned' then 1 else 0 end"

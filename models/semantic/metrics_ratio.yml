@@ -1,0 +1,43 @@
+# NOTE ON SYNTAX: ratio metrics' numerator/denominator reference other
+# METRICS (defined in metrics_simple.yml), not raw measures directly.
+# That's why returned_items/total_items/converted_sessions exist as their
+# own simple metrics first -- they're building blocks, not meant to be
+# surfaced to end users on their own, but MetricFlow's ratio type requires
+# a metric reference on each side, not a bare measure name.
+
+metrics:
+  - name: margin_rate
+    description: Margin as a percentage of revenue.
+    type: ratio
+    label: Margin Rate
+    type_params:
+      numerator: margin
+      denominator: revenue
+
+  - name: average_order_value
+    description: >
+      Revenue per order. Deliberately cross-semantic-model: numerator
+      comes from sem_order_items, denominator from sem_orders -- a good
+      example for students that metrics aren't limited to one semantic
+      model as long as both share a common entity (customer/order).
+    type: ratio
+    label: Average Order Value
+    type_params:
+      numerator: revenue
+      denominator: orders
+
+  - name: return_rate
+    description: Returned line items as a percentage of all line items.
+    type: ratio
+    label: Return Rate
+    type_params:
+      numerator: returned_items
+      denominator: total_items
+
+  - name: session_conversion_rate
+    description: Converted sessions as a percentage of all sessions.
+    type: ratio
+    label: Session Conversion Rate
+    type_params:
+      numerator: converted_sessions
+      denominator: sessions

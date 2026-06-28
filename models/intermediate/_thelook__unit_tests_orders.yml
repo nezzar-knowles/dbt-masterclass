@@ -1,0 +1,29 @@
+unit_tests:
+  - name: test_pivoted_status_dates_calculates_correctly
+    description: >
+      Feeds in a known created_at/shipped_at/delivered_at and asserts the
+      day-diff math comes out exactly right. Pure logic test — doesn't
+      depend on any real data quirk, just confirms the macro-wrapped
+      date_diff() arithmetic is correct.
+    model: int_orders_pivoted_status_dates
+    given:
+      - input: ref('stg_thelook__orders')
+        rows:
+          - {order_id: 1, user_id: 1, order_status: 'shipped', gender: 'F', num_of_item: 1, created_at: "2026-01-01 00:00:00", shipped_at: "2026-01-03 00:00:00", delivered_at: "2026-01-06 00:00:00", returned_at: null}
+    expect:
+      rows:
+        - {order_id: 1, days_to_ship: 2, days_to_deliver: 3, days_to_fulfill: 5, was_returned: false}
+
+  - name: test_pivoted_status_dates_handles_unshipped_order
+    description: >
+      An order that hasn't shipped yet should produce null days_to_ship
+      and null days_to_deliver, not an error or a zero. This is the case
+      that's easy to get wrong with naive date_diff logic.
+    model: int_orders_pivoted_status_dates
+    given:
+      - input: ref('stg_thelook__orders')
+        rows:
+          - {order_id: 2, user_id: 1, order_status: 'processing', gender: 'F', num_of_item: 1, created_at: "2026-01-01 00:00:00", shipped_at: null, delivered_at: null, returned_at: null}
+    expect:
+      rows:
+        - {order_id: 2, days_to_ship: null, days_to_deliver: null, days_to_fulfill: null, was_returned: false}

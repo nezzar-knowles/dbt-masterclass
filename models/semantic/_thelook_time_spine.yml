@@ -1,0 +1,16 @@
+version: 2
+models:
+  - name: time_spine_daily
+    description: >
+      Required MetricFlow time spine — one row per day, covering 5 years
+      back to 1 year forward from today. MetricFlow uses this as the date
+      scaffold for all time-based metric aggregations (monthly/weekly
+      groupings, trailing windows, running totals). Without this model and
+      its time_spine: config below, dbt parse throws a "no time spine
+      found" error and none of the semantic layer metrics work.
+    time_spine:
+      standard_granularity_column: date_day
+    columns:
+      - name: date_day
+        description: One row per calendar day. The base column for all time joins in MetricFlow.
+        granularity: day

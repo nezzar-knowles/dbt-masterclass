@@ -1,0 +1,56 @@
+semantic_models:
+  - name: sem_orders
+    description: >
+      Order-header grain. Use for fulfillment timing, return rate, and
+      holiday-lift questions. Use sem_order_items instead for product- or
+      category-specific revenue/margin questions.
+    model: ref('fct_orders')
+    defaults:
+      agg_time_dimension: ordered_at
+
+    entities:
+      - name: order
+        type: primary
+        expr: order_id
+      - name: customer
+        type: foreign
+        expr: user_id
+
+    dimensions:
+      - name: ordered_at
+        type: time
+        type_params:
+          time_granularity: day
+        expr: created_at
+      - name: order_status
+        type: categorical
+      - name: was_returned
+        type: categorical
+      - name: placed_on_holiday
+        type: categorical
+      - name: holiday_name
+        type: categorical
+      - name: attributed_traffic_source
+        type: categorical
+
+    measures:
+      - name: order_count
+        description: Count of orders.
+        agg: count
+        expr: order_id
+      - name: order_revenue_total
+        description: Sum of order-level revenue (order grain — see sem_order_items for product-level cuts).
+        agg: sum
+        expr: order_revenue
+      - name: returned_order_count
+        description: Count of orders flagged as returned.
+        agg: sum
+        expr: "case when was_returned then 1 else 0 end"
+      - name: avg_days_to_ship
+        description: Average days_to_ship across orders that have shipped.
+        agg: average
+        expr: days_to_ship
+      - name: avg_days_to_deliver
+        description: Average days_to_deliver across orders that have been delivered.
+        agg: average
+        expr: days_to_deliver

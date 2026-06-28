@@ -1,0 +1,178 @@
+version: 2
+
+# Uses the current `data_tests:` property name (the `tests:` key still works
+# but is deprecated as of dbt Core 1.8+) and the `arguments:` nesting for any
+# test that takes parameters beyond model/column_name (required on the
+# Fusion engine, supported on dbt Core 1.10.5+). If your project runs an
+# older dbt Core version and arguments: throws an error, move the nested
+# keys (e.g. `values:`, `to:`, `field:`, `min_value:`) up one level instead.
+
+models:
+  - name: stg_thelook__users
+    description: One row per user. Light renaming/cleanup only, no joins.
+    columns:
+      - name: user_id
+        description: Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: email
+        data_tests:
+          - not_null
+      - name: traffic_source
+        description: >
+          Acquisition channel at signup. TODO confirm the exact enum values
+          via analyses/peek_at_source_data.sql before adding an
+          accepted_values test here.
+      - name: created_at
+        description: User signup timestamp.
+        data_tests:
+          - not_in_future:
+              config:
+                severity: warn
+
+  - name: stg_thelook__orders
+    description: "{{ doc('dataset_is_live') }}"
+    columns:
+      - name: order_id
+        description: Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: user_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_thelook__users')
+                field: user_id
+      - name: order_status
+        description: "{{ doc('order_status_grain') }}"
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: "{{ valid_order_statuses() }}"
+      - name: created_at
+        data_tests:
+          - not_in_future:
+              config:
+                severity: warn
+
+  - name: stg_thelook__order_items
+    description: Order line items — the grain most revenue queries should join from.
+    columns:
+      - name: order_item_id
+        description: Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: order_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_thelook__orders')
+                field: order_id
+      - name: product_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_thelook__products')
+                field: product_id
+      - name: order_status
+        description: "{{ doc('order_status_grain') }}"
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: "{{ valid_order_statuses() }}"
+      - name: sale_price
+        description: "{{ doc('sale_price_vs_retail_price') }}"
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+      - name: created_at
+        data_tests:
+          - not_in_future:
+              config:
+                severity: warn
+
+  - name: stg_thelook__products
+    description: Product catalog. One row per product.
+    columns:
+      - name: product_id
+        description: Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: distribution_center_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_thelook__distribution_centers')
+                field: distribution_center_id
+      - name: retail_price
+        description: "{{ doc('sale_price_vs_retail_price') }}"
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+
+  - name: stg_thelook__inventory_items
+    description: "{{ doc('inventory_items_product_duplication') }}"
+    columns:
+      - name: inventory_item_id
+        description: Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: product_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_thelook__products')
+                field: product_id
+      - name: created_at
+        data_tests:
+          - not_in_future:
+              config:
+                severity: warn
+
+  - name: stg_thelook__distribution_centers
+    description: Small dimension table — fulfillment locations.
+    columns:
+      - name: distribution_center_id
+        description: Primary key.
+        data_tests:
+          - unique
+          - not_null
+
+  - name: stg_thelook__events
+    description: Clickstream/session-level events, linked only to users (not orders).
+    columns:
+      - name: event_id
+        description: Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: user_id
+        description: >
+          Nullable by design — anonymous browsing sessions before
+          signup/login won't have a user_id. The relationships test below
+          only checks non-null values, so anonymous events won't fail it.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_thelook__users')
+                field: user_id
+      - name: event_type
+        description: >
+          TODO confirm the exact enum values via
+          analyses/peek_at_source_data.sql before adding an accepted_values
+          test here.
+      - name: created_at
+        data_tests:
+          - not_in_future :
+              config:
+                severity: warn
