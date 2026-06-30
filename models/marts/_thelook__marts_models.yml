@@ -3,21 +3,67 @@ version: 2
 models:
   - name: dim_customers
     description: >
-      One row per user — profile, lifetime order/revenue stats, acquisition
-      channel, customer segment, and nearest distribution center.
-      Answers: who are our customers, how much have they spent, are they
-      repeat buyers, where did they come from.
+      One row per user — profile, lifetime order/revenue stats, acquisition channel, customer segment, and nearest distribution center. Answers: who are our customers, how much have they spent, are they repeat buyers, where did they come from.
+       One row per user. Use for customer LTV, segmentation, and acquisition-channel questions. Note lifetime_revenue here is computed once at the customer grain (see int_users_order_history_rollup) — it will NOT exactly match a sum() of sem_order_items.total_revenue sliced by customer in every edge case, since the two are built via different aggregation paths. Worth a direct callout to students.
     columns:
       - name: user_id
         data_tests:
           - unique
           - not_null
+        entity:
+          type: primary
+          name: customer
       - name: customer_segment
         data_tests:
           - accepted_values:
               arguments:
                 values: ['never_purchased', 'one_time_customer', 'repeat_customer']
 
+        dimension:
+          type: categorical
+      - name: signup_at
+        dimension:
+          type: time
+          name: signed_up_at
+        granularity: day
+      - name: acquisition_channel
+        dimension:
+          type: categorical
+      - name: gender
+        dimension:
+          type: categorical
+      - name: state
+        dimension:
+          type: categorical
+      - name: country
+        dimension:
+          type: categorical
+      - name: nearest_distribution_center_name
+        dimension:
+          type: categorical
+    semantic_model:
+      enabled: true
+      name: dim_customers
+    agg_time_dimension: signed_up_at
+    metrics:
+      - name: customers
+        description: Count of customers.
+        type: simple
+        label: Customers
+        agg: count
+        expr: user_id
+      - name: customer_lifetime_revenue
+        description: Sum of each customer's lifetime_revenue field.
+        agg: sum
+        expr: lifetime_revenue
+        type: simple
+        hidden: true
+      - name: customers_with_orders
+        description: Count of customers who have placed at least one order.
+        agg: sum
+        expr: "case when has_ordered then 1 else 0 end"
+        type: simple
+        hidden: true
   - name: dim_products
     description: >
       One row per product — catalog attributes, cost, retail price, and
@@ -40,14 +86,16 @@ models:
 
   - name: fct_orders
     description: >
-      One row per order — revenue, fulfillment timing, return flag, holiday
-      flag, and best-effort session attribution. Answers: how much revenue
-      per order, how fast do we ship/deliver, what's our return rate.
+      One row per order — revenue, fulfillment timing, return flag, holiday flag, and best-effort session attribution. Answers: how much revenue per order, how fast do we ship/deliver, what's our return rate.
+       Order-header grain. Use for fulfillment timing, return rate, and holiday-lift questions. Use sem_order_items instead for product- or category-specific revenue/margin questions.
     columns:
       - name: order_id
         data_tests:
           - unique
           - not_null
+        entity:
+          type: primary
+          name: order
       - name: user_id
         data_tests:
           - relationships:
@@ -55,16 +103,87 @@ models:
                 to: ref('dim_customers')
                 field: user_id
 
+        entity:
+          type: foreign
+          name: customer
+      - name: created_at
+        dimension:
+          type: time
+          name: ordered_at
+        granularity: day
+      - name: order_status
+        dimension:
+          type: categorical
+      - name: was_returned
+        dimension:
+          type: categorical
+      - name: placed_on_holiday
+        dimension:
+          type: categorical
+      - name: holiday_name
+        dimension:
+          type: categorical
+      - name: attributed_traffic_source
+        dimension:
+          type: categorical
+    semantic_model:
+      enabled: true
+      name: fct_orders
+    agg_time_dimension: ordered_at
+    metrics:
+      - name: orders
+        description: Count of orders.
+        type: simple
+        label: Orders
+        agg: count
+        expr: order_id
+      - name: order_revenue_total
+        description: Sum of order-level revenue (order grain — see sem_order_items for product-level cuts).
+        agg: sum
+        expr: order_revenue
+        type: simple
+        hidden: true
+      - name: returned_order_count
+        description: Count of orders flagged as returned.
+        agg: sum
+        expr: "case when was_returned then 1 else 0 end"
+        type: simple
+        hidden: true
+      - name: avg_days_to_ship
+        description: Average days_to_ship across orders that have shipped.
+        agg: average
+        expr: days_to_ship
+        type: simple
+        hidden: true
+      - name: avg_days_to_deliver
+        description: Average days_to_deliver across orders that have been delivered.
+        agg: average
+        expr: days_to_deliver
+        type: simple
+        hidden: true
+      - name: order_count
+        description: Count of orders.
+        agg: count
+        expr: order_id
+        type: simple
+        hidden: true
+      - name: orders_running_total
+        description: Running (all-time) count of orders as of each day.
+        type: cumulative
+        label: Orders Running Total
+        input_metric: order_count
   - name: fct_order_items
     description: >
-      One row per order line item — sale price, cost, margin, distribution
-      center. This is the grain to start from for revenue/margin questions,
-      since order-level revenue undercounts multi-item orders.
+      One row per order line item — sale price, cost, margin, distribution center. This is the grain to start from for revenue/margin questions, since order-level revenue undercounts multi-item orders.
+       Line-item grain — the primary source for revenue and margin metrics. Use this rather than sem_orders for anything product- or category-specific, since order-level revenue undercounts multi-item orders.
     columns:
       - name: order_item_id
         data_tests:
           - unique
           - not_null
+        entity:
+          type: primary
+          name: order_item
       - name: product_id
         data_tests:
           - relationships:
@@ -72,25 +191,234 @@ models:
                 to: ref('dim_products')
                 field: product_id
 
+        entity:
+          type: foreign
+          name: product
+      - name: order_id
+        entity:
+          type: foreign
+          name: order
+      - name: user_id
+        entity:
+          type: foreign
+          name: customer
+      - name: created_at
+        dimension:
+          type: time
+          name: ordered_at
+        granularity: day
+      - name: order_status
+        dimension:
+          type: categorical
+      - name: product_category
+        dimension:
+          type: categorical
+      - name: product_department
+        dimension:
+          type: categorical
+      - name: product_brand
+        dimension:
+          type: categorical
+      - name: distribution_center_name
+        dimension:
+          type: categorical
+    semantic_model:
+      enabled: true
+      name: fct_order_items
+    agg_time_dimension: ordered_at
+    metrics:
+      - name: revenue
+        description: Total revenue, summed across order line items. Use this, not order-level revenue, for any product/category cut.
+        type: simple
+        label: Revenue
+        agg: sum
+        expr: sale_price
+      - name: margin
+        description: Total margin (sale_price - cost), summed across order line items.
+        type: simple
+        label: Margin
+        agg: sum
+        expr: item_margin
+      - name: returned_items
+        description: Count of order line items with a returned status. Building block for return_rate.
+        type: simple
+        label: Returned Items
+        agg: sum
+        expr: "case when order_status = 'returned' then 1 else 0 end"
+      - name: total_items
+        description: Count of all order line items. Building block for return_rate.
+        type: simple
+        label: Total Items
+        agg: count
+        expr: order_item_id
+      - name: total_cost
+        description: Sum of product cost across line items.
+        agg: sum
+        expr: product_cost
+        type: simple
+        hidden: true
+      - name: total_revenue
+        description: Sum of sale_price across line items.
+        agg: sum
+        expr: sale_price
+        type: simple
+        hidden: true
+      - name: revenue_running_total
+        description: >
+          Running (all-time, unbounded) total revenue as of each day. No
+          window specified, so this accumulates from the start of the data
+          rather than resetting — good for a "total revenue to date" trend
+          line.
+        type: cumulative
+        label: Revenue Running Total
+        input_metric: total_revenue
+      - name: revenue_trailing_30_day
+        description: >
+          Revenue summed over a trailing 30-day window, recalculated as of
+          each day. Unlike revenue_running_total, this resets/rolls — useful
+          for spotting recent momentum without needing the whole history.
+        type: cumulative
+        label: Revenue (Trailing 30 Day)
+        window: 30 days
+        input_metric: total_revenue
+      - name: revenue_growth_vs_trailing_30_day
+        description: >
+          Running total revenue minus the trailing-30-day figure — isolates
+          "all revenue earned before the last 30 days" as a derived metric,
+          a good example of combining two cumulative metrics together.
+        type: derived
+        label: Revenue Earned Before Trailing 30 Days
+        expr: revenue_running_total - revenue_trailing_30_day
+        input_metrics:
+          - name: revenue_running_total
+          - name: revenue_trailing_30_day
+      - name: margin_rate
+        description: Margin as a percentage of revenue.
+        type: ratio
+        label: Margin Rate
+        numerator: margin
+        denominator: revenue
+      - name: return_rate
+        description: Returned line items as a percentage of all line items.
+        type: ratio
+        label: Return Rate
+        numerator: returned_items
+        denominator: total_items
   - name: fct_inventory
-    description: >
-      One row per inventory unit — cost, retail price, sold status, days
-      in inventory. Answers: how much stock is unsold, what's our
-      tied-up inventory cost.
+    description: >-
+      One row per inventory unit — cost, retail price, sold status, days in inventory. Answers: how much stock is unsold, what's our tied-up inventory cost.
+       One row per inventory unit. Use for stock-health and capital-tied-up questions.
     columns:
       - name: inventory_item_id
         data_tests:
           - unique
           - not_null
 
+        entity:
+          type: primary
+          name: inventory_item
+      - name: product_id
+        entity:
+          type: foreign
+          name: product
+      - name: created_at
+        dimension:
+          type: time
+          name: stocked_at
+        granularity: day
+      - name: category
+        dimension:
+          type: categorical
+      - name: department
+        dimension:
+          type: categorical
+      - name: is_currently_in_stock
+        dimension:
+          type: categorical
+    semantic_model:
+      enabled: true
+      name: fct_inventory
+    agg_time_dimension: stocked_at
+    metrics:
+      - name: inventory_capital
+        description: Total cost of inventory currently on hand.
+        type: simple
+        label: Inventory Capital
+        agg: sum
+        expr: inventory_unit_cost
+      - name: inventory_unit_count
+        description: Count of inventory units.
+        agg: count
+        expr: inventory_item_id
+        type: simple
+        hidden: true
+      - name: unsold_unit_count
+        description: Count of units not yet sold.
+        agg: sum
+        expr: "case when is_currently_in_stock then 1 else 0 end"
+        type: simple
+        hidden: true
+      - name: avg_days_in_inventory
+        description: Average days_in_inventory across currently unsold units.
+        agg: average
+        expr: days_in_inventory
+        type: simple
+        hidden: true
   - name: fct_sessions
     description: >
-      One row per browsing session — duration, event count, traffic source,
-      conversion flag. Independent of revenue by design; join to
-      fct_orders.attributed_session_id only when needed, with the heuristic
-      caveat in mind.
+      One row per browsing session — duration, event count, traffic source, conversion flag. Independent of revenue by design; join to fct_orders.attributed_session_id only when needed, with the heuristic caveat in mind.
+       One row per browsing session. Use for traffic and conversion questions. Independent of revenue by design — see the project README on why session-to-revenue attribution is a documented heuristic, not a verified join.
     columns:
       - name: session_id
         data_tests:
           - unique
           - not_null
+        entity:
+          type: primary
+          name: session
+      - name: user_id
+        entity:
+          type: foreign
+          name: customer
+      - name: session_started_at
+        dimension:
+          type: time
+        granularity: day
+      - name: traffic_source
+        dimension:
+          type: categorical
+      - name: browser
+        dimension:
+          type: categorical
+      - name: converted_in_session
+        dimension:
+          type: categorical
+    semantic_model:
+      enabled: true
+      name: fct_sessions
+    agg_time_dimension: session_started_at
+    metrics:
+      - name: sessions
+        description: Count of browsing sessions.
+        type: simple
+        label: Sessions
+        agg: count
+        expr: session_id
+      - name: converted_sessions
+        description: Count of sessions that included a purchase event. Building block for session_conversion_rate.
+        type: simple
+        label: Converted Sessions
+        agg: sum
+        expr: "case when converted_in_session then 1 else 0 end"
+      - name: total_session_events
+        description: Sum of event_count across sessions.
+        agg: sum
+        expr: event_count
+        type: simple
+        hidden: true
+      - name: session_conversion_rate
+        description: Converted sessions as a percentage of all sessions.
+        type: ratio
+        label: Session Conversion Rate
+        numerator: converted_sessions
+        denominator: sessions
