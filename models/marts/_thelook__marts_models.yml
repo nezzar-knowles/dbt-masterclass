@@ -2,9 +2,11 @@ version: 2
 
 models:
   - name: dim_customers
+
     description: >
       One row per user — profile, lifetime order/revenue stats, acquisition channel, customer segment, and nearest distribution center. Answers: who are our customers, how much have they spent, are they repeat buyers, where did they come from.
        One row per user. Use for customer LTV, segmentation, and acquisition-channel questions. Note lifetime_revenue here is computed once at the customer grain (see int_users_order_history_rollup) — it will NOT exactly match a sum() of sem_order_items.total_revenue sliced by customer in every edge case, since the two are built via different aggregation paths. Worth a direct callout to students.
+
     columns:
       - name: user_id
         data_tests:
@@ -18,7 +20,6 @@ models:
           - accepted_values:
               arguments:
                 values: ['never_purchased', 'one_time_customer', 'repeat_customer']
-
         dimension:
           type: categorical
       - name: signup_at
@@ -41,10 +42,13 @@ models:
       - name: nearest_distribution_center_name
         dimension:
           type: categorical
+
     semantic_model:
       enabled: true
       name: dim_customers
+
     agg_time_dimension: signed_up_at
+
     metrics:
       - name: customers
         description: Count of customers.
@@ -64,30 +68,43 @@ models:
         expr: "case when has_ordered then 1 else 0 end"
         type: simple
         hidden: true
+
+
+
   - name: dim_products
+
     description: >
       One row per product — catalog attributes, cost, retail price, and
       expected margin. Answers: what do we sell, what's our markup by
       category/brand/department.
+
     columns:
       - name: product_id
         data_tests:
           - unique
           - not_null
 
+
+
   - name: dim_distribution_centers
+
     description: >
       One row per fulfillment location. Answers how many distribution centers do we have and where.
+    
     columns:
       - name: distribution_center_id
         data_tests:
           - unique
           - not_null
 
+
+
   - name: fct_orders
+
     description: >
       One row per order — revenue, fulfillment timing, return flag, holiday flag, and best-effort session attribution. Answers: how much revenue per order, how fast do we ship/deliver, what's our return rate.
        Order-header grain. Use for fulfillment timing, return rate, and holiday-lift questions. Use sem_order_items instead for product- or category-specific revenue/margin questions.
+    
     columns:
       - name: order_id
         data_tests:
@@ -102,7 +119,6 @@ models:
               arguments:
                 to: ref('dim_customers')
                 field: user_id
-
         entity:
           type: foreign
           name: customer
@@ -126,10 +142,13 @@ models:
       - name: attributed_traffic_source
         dimension:
           type: categorical
+
     semantic_model:
       enabled: true
       name: fct_orders
+
     agg_time_dimension: ordered_at
+
     metrics:
       - name: orders
         description: Count of orders.
@@ -172,10 +191,15 @@ models:
         type: cumulative
         label: Orders Running Total
         input_metric: order_count
+
+
+
   - name: fct_order_items
+
     description: >
       One row per order line item — sale price, cost, margin, distribution center. This is the grain to start from for revenue/margin questions, since order-level revenue undercounts multi-item orders.
        Line-item grain — the primary source for revenue and margin metrics. Use this rather than sem_orders for anything product- or category-specific, since order-level revenue undercounts multi-item orders.
+    
     columns:
       - name: order_item_id
         data_tests:
@@ -190,7 +214,6 @@ models:
               arguments:
                 to: ref('dim_products')
                 field: product_id
-
         entity:
           type: foreign
           name: product
@@ -222,10 +245,13 @@ models:
       - name: distribution_center_name
         dimension:
           type: categorical
+
     semantic_model:
       enabled: true
       name: fct_order_items
+
     agg_time_dimension: ordered_at
+
     metrics:
       - name: revenue
         description: Total revenue, summed across order line items. Use this, not order-level revenue, for any product/category cut.
@@ -304,10 +330,15 @@ models:
         label: Return Rate
         numerator: returned_items
         denominator: total_items
+
+
+
   - name: fct_inventory
+
     description: >-
       One row per inventory unit — cost, retail price, sold status, days in inventory. Answers: how much stock is unsold, what's our tied-up inventory cost.
        One row per inventory unit. Use for stock-health and capital-tied-up questions.
+    
     columns:
       - name: inventory_item_id
         data_tests:
@@ -335,10 +366,13 @@ models:
       - name: is_currently_in_stock
         dimension:
           type: categorical
+
     semantic_model:
       enabled: true
       name: fct_inventory
+
     agg_time_dimension: stocked_at
+
     metrics:
       - name: inventory_capital
         description: Total cost of inventory currently on hand.
@@ -364,10 +398,15 @@ models:
         expr: days_in_inventory
         type: simple
         hidden: true
+
+
+
   - name: fct_sessions
+
     description: >
       One row per browsing session — duration, event count, traffic source, conversion flag. Independent of revenue by design; join to fct_orders.attributed_session_id only when needed, with the heuristic caveat in mind.
        One row per browsing session. Use for traffic and conversion questions. Independent of revenue by design — see the project README on why session-to-revenue attribution is a documented heuristic, not a verified join.
+    
     columns:
       - name: session_id
         data_tests:
@@ -396,7 +435,9 @@ models:
     semantic_model:
       enabled: true
       name: fct_sessions
+
     agg_time_dimension: session_started_at
+    
     metrics:
       - name: sessions
         description: Count of browsing sessions.
