@@ -1,4 +1,4 @@
-/* 
+
 -- BigQuery-specific: partition by the order date so each daily
 -- incremental run only scans the latest partition, not the whole
 -- table. Without this, every run scans the full fct_order_items
@@ -77,4 +77,3 @@ select
 
 from order_items_joined
 
-*/

@@ -1,5 +1,3 @@
-
-
 # YAML-based snapshot config (the current recommended syntax as of dbt
 # v1.9+ / Latest release track — replaces the older {% snapshot %} Jinja
 # block syntax you'll see in a lot of existing tutorials). If your project
