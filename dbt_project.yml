@@ -66,5 +66,6 @@ seeds:
 
 data_tests:
   +store_failures: true
+  
 flags:
   require_generic_test_arguments_property: true
