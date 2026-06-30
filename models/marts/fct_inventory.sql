@@ -1,3 +1,10 @@
+{{
+    config(
+        tags = ['inventory']
+    )
+}}
+
+
 -- Business questions this answers: How much stock do we have sitting
 -- unsold, and for how long? Which categories have the slowest-moving
 -- inventory? What's our tied-up inventory cost?

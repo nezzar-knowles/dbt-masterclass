@@ -1,3 +1,8 @@
+{{
+    config(
+        tags = ['order_item']
+    )
+}}
 
 -- BigQuery-specific: partition by the order date so each daily
 -- incremental run only scans the latest partition, not the whole

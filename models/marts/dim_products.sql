@@ -1,3 +1,9 @@
+{{
+    config(
+        tags = ['product']
+    )
+}}
+
 -- Business questions this answers: What's our product catalog? What's our
 -- markup by category/brand/department? Which distribution center stocks
 -- a given product?

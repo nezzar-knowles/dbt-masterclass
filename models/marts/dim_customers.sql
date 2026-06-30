@@ -1,3 +1,10 @@
+{{
+    config(
+        tags = ['customer']
+    )
+}}
+
+
 -- Business questions this answers: Who are our customers? How much have
 -- they spent? Where did they come from? How long until they first bought?
 -- Are they a repeat customer? What's their nearest fulfillment location?

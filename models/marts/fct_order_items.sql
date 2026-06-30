@@ -1,3 +1,9 @@
+{{
+    config(
+        tags = ['order_item']
+    )
+}}
+
 -- Business questions this answers: What's our margin by product/category/
 -- brand? Which products sell best? Which distribution center fulfills the
 -- most revenue? (This is the grain almost every revenue and margin

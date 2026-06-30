@@ -1,3 +1,9 @@
+{{
+    config(
+        tags = ['order']
+    )
+}}
+
 -- Business questions this answers: How much revenue per order? How fast do
 -- we ship/deliver? What's our return rate? Does ordering on a holiday
 -- correlate with anything? What channel/session preceded the order?

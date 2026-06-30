@@ -1,3 +1,9 @@
+{{
+    config(
+        tags = ['session']
+    )
+}}
+
 -- Business questions this answers: How much traffic do we get by channel?
 -- What's our session-to-purchase conversion rate? How long are sessions?
 -- This table is intentionally independent of orders/revenue — join to

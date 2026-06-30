@@ -1,3 +1,9 @@
+{{
+    config(
+        tags = ['distribution center']
+    )
+}}
+
 -- Business question this answers: How many distribution centers do we have,
 -- and where are they? (Deliberately thin — most of the analytical value of
 -- distribution centers comes through fct_order_items and dim_customers'
