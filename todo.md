@@ -19,13 +19,15 @@ check out the unique values in the event type in stg_thelook__events and and the
 
 
 you can also overide your model level config in the dbt_project.yml rather than the in-file level config
-find out where to get my target.schema. In my case it is dbt_n3zzar
+
 importance of confugring +groups
 
 
 I need to add tags, 
 Get the ERD
 Understand loop.last, loop.first and loop.index. How to clear trailing gaps.
++groups
+find out where to get my target.schema. In my case it is dbt_n3zzar
 
 
 Module 1
